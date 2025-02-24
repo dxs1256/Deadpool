@@ -1,58 +1,145 @@
-import utils
-import time
-import schedule  # 用于定时任务（可选）
+package main
 
+import (
+	"Deadpool/utils"
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"strconv"
+	"strings"
 
-def get_proxies(config):
-    """获取所有来源的代理，并进行去重"""
-    utils.socks_list = []  # 清空列表
+	"github.com/armon/go-socks5"
+	"github.com/robfig/cron/v3"
+	// "github.com/gookit/color"  // 不需要
+)
 
-    # 从远程 URL 获取
-    remote_urls = [
-        "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt",
-        "https://raw.githubusercontent.com/sunny9577/proxy-scraper/master/proxies.txt",
-    ]
-    for url in remote_urls:
-        remote_proxies = utils.get_remote_socks(url)
-        utils.socks_list.extend(remote_proxies)
-        print(f"从 {url} 获取了 {len(remote_proxies)} 个代理")
+func main() {
+	utils.Banner()
+	fmt.Print("By:thinkoaa GitHub:https://github.com/thinkoaa/Deadpool\n\n\n")
 
-    # 去重
-    utils.socks_list = list(set(utils.socks_list))
-    print(f"去重后，共有 {len(utils.socks_list)} 个代理")
-    return utils.socks_list
+	// 读取配置文件
+	config, err := utils.LoadConfig("config.toml")
+	if err != nil {
+		fmt.Printf("config.toml配置文件存在错误字符: %d\n", err)
+		os.Exit(1)
+	}
 
+	fmt.Print("***直接使用fmt打印当前使用的代理,若高并发时,命令行打印可能会阻塞，不对打印做特殊处理，可忽略，不会影响实际的请求转发***\n\n")
 
-def main():
-    config = utils.load_config()
+	// 修改 GetSocks 函数，使其也从远程 URL 获取代理
+	utils.GetSocks = func(config *utils.Config) {
+		// 从本地文件获取
+		utils.GetSocksFromFile(utils.LastDataFile)
 
-    # 获取并检查代理
-    proxies = get_proxies(config)
-    utils.timeout = config["check_socks"]["timeout"]
-    valid_proxies = utils.check_proxies(proxies, config["check_socks"]["check_url"] , config["check_socks"]["max_concurrent_req"], config["check_socks"]["timeout"]  )
-    print(f"共有 {len(valid_proxies)} 个有效代理")
+		// 从远程 URL 获取
+		remoteURLs := []string{
+			"https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/socks5.txt",
+			"https://raw.githubusercontent.com/sunny9577/proxy-scraper/refs/heads/master/proxies.txt",
+		}
+		for _, url := range remoteURLs {
+			//  直接在 GetSocks 函数内部使用 getRemoteSocks (小写 g)
+        
+			remoteSocks, err := utils.getRemoteSocks(url) // 正确：小写 g
+			if err != nil {
+				fmt.Printf("从远程 URL %s 获取代理失败: %v\n", url, err)
+				continue // 如果一个 URL 失败，继续下一个
+			}
+			//去重
+			for _, proxy := range remoteSocks {
+				if !utils.Contains(utils.SocksList, proxy) {
+					utils.SocksList = append(utils.SocksList, proxy)
+				}
+			}
+		}
 
-    # 保存有效代理 (可选, 如果你仍然需要的话)
-    utils.write_proxies_to_file(utils.last_data_file, valid_proxies)
-    print(f"有效代理已保存到 {utils.last_data_file} (可选)")
+		// 从fofa获取
+		utils.Wg.Add(1)
+		go utils.GetSocksFromFofa(config.FOFA)
+		//从hunter获取
+		utils.Wg.Add(1)
+		go utils.GetSocksFromHunter(config.HUNTER)
+		//从quake中取
+		utils.Wg.Add(1)
+		go utils.GetSocksFromQuake(config.QUAKE)
+		utils.Wg.Wait()
+		//根据IP:PORT去重
+		utils.RemoveDuplicates(&utils.SocksList)
+	}
 
+	utils.GetSocks(config) // 调用 GetSocks, 它会处理本地和远程的代理
 
-    # 设置定时任务 (可选)
-    if config.get("task") and config["task"].get("periodic_get_socks"):
-        schedule.every().day.at(config["task"]["periodic_get_socks"]).do(get_proxies, config) #这里只是举例每天的某个时间点运行一次
-        # schedule.every(5).days.do(get_proxies, config) #这里只是举例, 每5天.
-        # schedule.every().hour.do(job) #每小时
-        # schedule.every().monday.do(job) #每周
-        # schedule.every().wednesday.at("13:15").do(job) #每周三13:15
-        print(f"已设置定时任务：每 {config['task']['periodic_get_socks']} 执行一次代理获取和检查")
-        while True:
-            schedule.run_pending()
-            time.sleep(60)  # 每分钟检查一次是否有任务需要执行
+	if len(utils.SocksList) == 0 {
+		fmt.Println("未发现代理数据,请调整配置信息,或向" + utils.LastDataFile + "中直接写入IP:PORT格式的socks5代理\n程序退出")
+		os.Exit(1)
+	}
+	fmt.Printf("根据IP:PORT去重后，共发现%v个代理\n检测可用性中......\n", len(utils.SocksList))
 
+	//开始检测代理存活性
+	utils.Timeout = config.CheckSocks.Timeout
+	utils.CheckSocks(config.CheckSocks, utils.SocksList)
 
-    # 开启监听(这部分没有实现,  因为原代码是使用Go的库实现的, Python中没有完全对应的库)
-    # 如果你需要SOCKS5服务器功能，你需要使用其他的Python库来实现, 例如 asyncio, Twisted 等。
+	//根据配置，定时检测内存中的代理存活信息
+	cron := cron.New()
+	periodicChecking := strings.TrimSpace(config.Task.PeriodicChecking)
+	cronFlag := false
+	if periodicChecking != "" {
+		cronFlag = true
+		cron.AddFunc(periodicChecking, func() {
+			fmt.Printf("\n===代理存活自检 开始===\n\n")
+			tempList := make([]string, len(utils.EffectiveList))
+			copy(tempList, utils.EffectiveList)
+			utils.CheckSocks(config.CheckSocks, tempList)
+			fmt.Printf("\n===代理存活自检 结束===\n\n")
+		})
+	}
+	//根据配置信息，周期性取本地以及hunter、quake、fofa的数据
+	periodicGetSocks := strings.TrimSpace(config.Task.PeriodicGetSocks)
+	if periodicGetSocks != "" {
+		cronFlag = true
+		cron.AddFunc(periodicGetSocks, func() {
+			fmt.Printf("\n===周期性取代理数据 开始===\n\n")
+			utils.SocksList = utils.SocksList[:0]
+			utils.GetSocks(config) // 再次调用 utils.GetSocks
+			fmt.Printf("根据IP:PORT去重后，共发现%v个代理\n检测可用性中......\n", len(utils.SocksList))
+			utils.CheckSocks(config.CheckSocks, utils.SocksList)
+			if len(utils.EffectiveList) != 0 {
+				utils.WriteLinesToFile()
+			}
+			fmt.Printf("\n===周期性取代理数据 结束===\n\n")
 
+		})
+	}
 
-if __name__ == "__main__":
-    main()
+	if cronFlag {
+		cron.Start()
+	}
+
+	if len(utils.EffectiveList) == 0 {
+		fmt.Println("根据规则检测后，未发现满足要求的代理,请调整配置,程序退出")
+		os.Exit(1)
+	}
+
+	utils.WriteLinesToFile()
+
+	// 开启监听
+	conf := &socks5.Config{
+		Dial:   utils.DefineDial,
+		Logger: log.New(io.Discard, "", log.LstdFlags),
+	}
+	userName := strings.TrimSpace(config.Listener.UserName)
+	password := strings.TrimSpace(config.Listener.Password)
+	if userName != "" && password != "" {
+		cator := socks5.UserPassAuthenticator{Credentials: socks5.StaticCredentials{
+			userName: password,
+		}}
+		conf.AuthMethods = []socks5.Authenticator{cator}
+	}
+	server, _ := socks5.New(conf)
+	listener := config.Listener.IP + ":" + strconv.Itoa(config.Listener.Port)
+	fmt.Printf("======其他工具通过配置 socks5://%v 使用收集的代理,如有账号密码，记得配置======\n", listener)
+	if err := server.ListenAndServe("tcp", listener); err != nil {
+		fmt.Printf("本地监听服务启动失败：%v\n", err)
+		os.Exit(1)
+	}
+}
