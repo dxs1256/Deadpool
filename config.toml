@@ -1,8 +1,9 @@
 [check_socks]
-max_concurrent_req = 50  # 最大并发检查数
-timeout = 10             # 超时时间（秒）
-check_url = "https://www.google.com"  # 用于检查代理可用性的 URL
+max_concurrent_req = 200
+timeout = 10
+check_url = "https://www.google.com"
+check_rsp_keywords = "</body>"
 
 [task]
-periodic_checking = ""  # 例如：""  # 周期性检测, 为空则不启用.  注意：cron 表达式
-periodic_get_socks = "" # 例如：""  # 周期性获取, 为空则不启用
+periodic_checking = ""
+periodic_get_socks = ""
