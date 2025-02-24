@@ -33,21 +33,28 @@ periodic_checking = ""  # 检查周期 (cron 表达式)
 periodic_get_socks = "" # 获取周期 (cron 表达式)
 Use code with caution.
 Toml
-用法：
+```
 
-配置 config.toml。
+** 用法：**
 
-运行 python main.py。
+*  配置 config.toml。
 
-输出：
+*  运行 python main.py。
 
-控制台日志。
+** 输出：**
 
-有效代理保存至 lastData.txt。
+*  控制台日志。
 
-**说明:**
+*  有效代理保存至 lastData.txt。
 
-*   我将“Use code with caution” 删除了，因为这通常用于免责声明，在这里不太合适。
-*   我稍微调整了 “配置” 部分的排版，使其更清晰。
-*   我将“cron”改为了更具体的“cron 表达式”，并添加了注释。
-*   我把输出的格式也稍微调整了一下。
+** TODO (未来可能的改进):** 
+
+*  添加更多的代理来源。
+
+*  更精细的代理检查（例如，检查延迟、地理位置等）。
+
+*  支持多种代理协议（HTTP、HTTPS、SOCKS4）。
+
+*  提供 Web 界面。
+
+*  实现SOCKS5服务器功能。
