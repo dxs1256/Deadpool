@@ -7,26 +7,33 @@ import logging  # 导入 logging 模块
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-def get_proxies(config: dict) -> list:
+def get_proxies(config):
     """获取所有来源的代理，并进行去重"""
-    socks_list: list[str] = []  # 使用局部变量, 并添加类型提示
+    utils.socks_list = []  # 清空列表
 
     # 从远程 URL 获取
-    remote_urls = [
-        "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt",
-        "https://raw.githubusercontent.com/sunny9577/proxy-scraper/master/proxies.txt",
-    ]
+    # remote_urls = [
+    #     "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt",
+    #     "https://raw.githubusercontent.com/sunny9577/proxy-scraper/master/proxies.txt",
+    # ]
+    # 改为从配置文件读取
+    remote_urls = config.get("remote_urls", {}).get("urls", []) # 增加一个判断
+    if not remote_urls:
+        logging.warning("未配置远程代理 URL 列表 (remote_urls.urls)")
+        
+
     for url in remote_urls:
         logging.info(f"开始从远程 URL: {url} 获取代理")
         remote_proxies = utils.get_remote_socks(url)
-        socks_list.extend(remote_proxies)
+        utils.socks_list.extend(remote_proxies)
         logging.info(f"从 {url} 获取了 {len(remote_proxies)} 个代理")
+
 
     # 去重
     logging.info("开始去重...")
-    socks_list = list(set(socks_list))  # 使用 set 去重, 更高效
-    logging.info(f"去重后，共有 {len(socks_list)} 个代理")
-    return socks_list
+    utils.socks_list = list(set(utils.socks_list))  # 使用 set 去重, 更高效
+    logging.info(f"去重后，共有 {len(utils.socks_list)} 个代理")
+    return utils.socks_list
 
 
 def main():
@@ -37,7 +44,7 @@ def main():
     # 获取并检查代理
     proxies = get_proxies(config)
     logging.info("开始检查代理可用性...")
-    #utils.timeout = config["check_socks"]["timeout"]  # 不需要了, timeout 在 utils.py 中定义
+    utils.timeout = config["check_socks"]["timeout"]
     valid_proxies = utils.check_proxies(
         proxies,
         config["check_socks"]["check_url"],
