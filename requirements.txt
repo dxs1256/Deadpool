@@ -1,0 +1,4 @@
+requests
+PySocks
+toml
+schedule
