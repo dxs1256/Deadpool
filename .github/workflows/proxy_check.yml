@@ -24,13 +24,27 @@ jobs:
     - name: Run proxy checker
       run: python your_script_name.py
 
-    - name: Commit results
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add lastData.txt
-        git commit -m "Update proxy list" || echo "No changes to commit"
-        git push origin master  # 假设你的主分支是 master
+    - name: Check for changes and commit
+      uses: actions/github-script@v6  # 使用 github-script
+      if: github.event_name == 'schedule' # 仅计划任务
+      with:
+        script: |
+          const { execSync } = require('child_process');
+          try {
+            // 检查 lastData.txt 是否有变化
+            execSync('git diff --exit-code --quiet HEAD -- lastData.txt');
+            console.log('No changes to lastData.txt. Skipping commit.');
+            return; // 没有变化，退出
+          } catch (error) {
+             // 有变化, 继续执行提交
+            console.log('Changes detected in lastData.txt. Committing...');
+          }
+
+          // 配置 Git 并提交
+          execSync('git config --local user.email "action@github.com"');
+          execSync('git config --local user.name "GitHub Action"');
+          execSync('git add lastData.txt');
+          execSync('git commit -m "Update proxy list"');
+          execSync('git push origin master'); # 假设你的主分支是master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      if: github.event_name == 'schedule' && ! (git diff --quiet HEAD -- lastData.txt) # 仅在文件更改时
