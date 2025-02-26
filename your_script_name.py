@@ -210,7 +210,6 @@ def main():
     write_proxies_to_file(LAST_DATA_FILE, valid_proxies)
     logging.info(f"有效代理已保存到 {LAST_DATA_FILE}")
 
-    # GitHub Actions 不需要 schedule
     logging.info("程序结束")
 
 
