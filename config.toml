@@ -1,15 +1,11 @@
+[check_socks]
+check_urls = ["http://www.google.com", "https://www.icanhazip.com"]  # 多个检查 URL
+max_concurrent_req = 20          # 并发连接数
+timeout = 5                     # 超时时间（秒）
+retries = 3                     # 重试次数
+
 [remote_urls]
 urls = [
     "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt",
     "https://raw.githubusercontent.com/sunny9577/proxy-scraper/master/generated/socks5_proxies.txt",
 ]
-
-[check_socks]
-max_concurrent_req = 200
-timeout = 10
-check_url = "https://www.google.com"
-check_rsp_keywords = "</body>"
-
-[task]
-periodic_checking = ""
-periodic_get_socks = ""
