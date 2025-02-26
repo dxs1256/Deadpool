@@ -24,7 +24,7 @@ jobs:
       run: pip install requests toml pysocks
 
     - name: Run proxy checker
-      run: python your_script_name.py
+      run: python main.py
 
     - name: Commit changes
       uses: actions/github-script@v6
