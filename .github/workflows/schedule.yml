@@ -10,38 +10,37 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-      with:
-        ref: master
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: master
 
-    - name: Set up Python
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.10'
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
 
-    - name: Install dependencies
-      run: pip install requests toml pysocks
+      - name: Install dependencies
+        run: pip install requests toml pysocks
 
-    - name: Run proxy checker
-      run: python main.py
+      - name: Run proxy checker
+        run: python main.py
 
-    - name: Commit changes
-      uses: actions/github-script@v6
-      if: github.event_name == 'schedule'
-      with:
-        script: |
-          const { execSync } = require('child_process');
-          const currentTime = new Date().toISOString();
+      - name: Commit changes
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const currentTime = new Date().toISOString();
 
-          # 获取远程仓库的最新更改 (建议保留)
-          execSync('git fetch origin master');
+            // 获取远程仓库的最新更改 (建议保留)
+            execSync('git fetch origin master');
 
-          // 配置 Git 并提交
-          execSync('git config --local user.email "action@github.com"');
-          execSync('git config --local user.name "GitHub Action"');
-          execSync('git add lastData.txt');
-          execSync(`git commit -m "Update proxy list at ${currentTime}"`);
-          execSync('git push origin master');
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            // 配置 Git 并提交
+            execSync('git config --local user.email "action@github.com"');
+            execSync('git config --local user.name "GitHub Action"');
+            execSync('git add lastData.txt');
+            execSync(`git commit -m "Update proxy list at ${currentTime}"`);
+            execSync('git push origin master');
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
