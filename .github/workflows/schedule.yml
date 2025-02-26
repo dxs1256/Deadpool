@@ -13,7 +13,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
       with:
-        ref: master  # 确保使用 master 分支
+        ref: master
 
     - name: Set up Python
       uses: actions/setup-python@v3
@@ -28,20 +28,20 @@ jobs:
 
     - name: Commit changes
       uses: actions/github-script@v6
-      if: github.event_name == 'schedule'  # 仅在定时任务触发时提交
+      if: github.event_name == 'schedule'
       with:
         script: |
           const { execSync } = require('child_process');
           const currentTime = new Date().toISOString();
 
-          // 获取远程仓库的最新更改 (仍然建议保留)
+          # 获取远程仓库的最新更改 (建议保留)
           execSync('git fetch origin master');
 
           // 配置 Git 并提交
           execSync('git config --local user.email "action@github.com"');
           execSync('git config --local user.name "GitHub Action"');
           execSync('git add lastData.txt');
-          execSync(`git commit -m "Update proxy list at ${currentTime}"`); // 提交消息包含时间戳
+          execSync(`git commit -m "Update proxy list at ${currentTime}"`);
           execSync('git push origin master');
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
