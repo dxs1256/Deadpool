@@ -3,21 +3,17 @@ name: Proxy Checker
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *'  # 每天 00:00 UTC 执行
+    - cron: '0 0 * * *'
 
 jobs:
   check_proxies:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Clean workspace  # 清理工作区 (可选, 建议保留)
-      run: |
-        git clean -fdx
-        git reset --hard
-    - name: Checkout code
+    - name: Checkout code  # 确保这一步成功执行
       uses: actions/checkout@v3
       with:
-        ref: master  # 确保使用 master 分支
+        ref: master
 
     - name: Set up Python
       uses: actions/setup-python@v3
@@ -37,18 +33,13 @@ jobs:
         script: |
           const { execSync } = require('child_process');
           try {
-            // 获取远程仓库的最新更改
             execSync('git fetch origin master');
-
-            // 检查 lastData.txt 是否有变化
             execSync('git diff --exit-code --quiet HEAD -- lastData.txt');
             console.log('No changes to lastData.txt. Skipping commit.');
-            return; // 没有变化，退出 (可以注释掉)
+            return;
           } catch (error) {
             console.log('Changes detected or file does not exist. Committing...');
             console.error('Error from git diff:', error);
-
-            // (可选) 检查错误信息，判断文件是否不存在
             if (error.message.includes("fatal: Path 'lastData.txt' does not exist in 'HEAD'")) {
               console.log('lastData.txt does not exist in HEAD. Adding and committing.');
             }
@@ -58,7 +49,7 @@ jobs:
           execSync('git config --local user.email "action@github.com"');
           execSync('git config --local user.name "GitHub Action"');
           execSync('git add lastData.txt');
-          execSync(`git commit -m "Update proxy list at ${currentTime}"`); // 提交消息包含时间戳
+          execSync(`git commit -m "Update proxy list at ${currentTime}"`);
           execSync('git push origin master');
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
