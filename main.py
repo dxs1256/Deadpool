@@ -151,8 +151,6 @@ def write_proxies_to_file(filename: str, proxies: List[str]):
     """写入文件 (如果不需要写入文件头, 可以删除相关代码)"""
     try:
         with open(filename, "w") as f:
-            f.write(f"# Updated at: {time.strftime('%Y-%m-%d %H:%M:%S UTC')}\n")
-            f.write(f"# Random ID: {uuid.uuid4()}\n")
             for proxy in proxies:
                 f.write(proxy + "\n")
         logging.info(f"已将 {len(proxies)} 个代理写入 {filename}")
