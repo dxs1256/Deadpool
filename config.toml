@@ -1,8 +1,12 @@
 [check_socks]
-check_urls = ["http://www.google.com", "https://www.icanhazip.com", "https://www.baidu.com"]  # 多个检查 URL
-max_concurrent_req = 200          # 并发连接数
-timeout = 5                     # 超时时间（秒）
-retries = 3                     # 重试次数
+check_urls = [
+    "http://www.google.com",
+    "https://www.icanhazip.com",
+    "https://www.baidu.com"
+]
+max_concurrent_req = 200   # 并发连接数
+timeout = 5  # 超时时间（秒）
+retries = 3  # 重试次数
 
 [remote_urls]
 urls = [
