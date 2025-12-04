@@ -8,6 +8,10 @@ on:
 jobs:
   check_proxies:
     runs-on: ubuntu-latest
+    
+    # 授予写权限，以便提交代码
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -33,14 +37,23 @@ jobs:
             const { execSync } = require('child_process');
             const currentTime = new Date().toISOString();
 
-            // 获取远程仓库的最新更改 (建议保留)
-            execSync('git fetch origin master');
-
-            // 配置 Git 并提交
+            // 1. 设置 Git 用户
             execSync('git config --local user.email "action@github.com"');
             execSync('git config --local user.name "GitHub Action"');
-            execSync('git add lastData.txt');
-            execSync(`git commit -m "Update proxy list at ${currentTime}"`);
+
+            // 2. 添加所有变更 (包括 Baidu.txt, Google.txt, All.txt)
+            execSync('git add .');
+
+            // 3. 提交 (使用 try-catch 忽略无变更时的报错)
+            try {
+                execSync(`git commit -m "Update proxy list at ${currentTime}"`);
+                console.log("提交成功，准备推送...");
+            } catch (error) {
+                console.log("没有检测到文件变动 (No changes to commit)，跳过推送。");
+                return; 
+            }
+
+            // 4. 推送
             execSync('git push origin master');
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
