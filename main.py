@@ -3,16 +3,17 @@ import toml
 import time
 import logging
 import re
+import os  # 新增：用于文件清理
 from typing import List, Dict, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
-# 输出文件名
+# 输出文件名定义
 FILE_BAIDU = "Baidu.txt"
 FILE_GOOGLE = "Google.txt"
-FILE_ALL = "All.txt"  # 存放全能代理
+FILE_ALL = "All.txt"
 CONFIG_FILE = "config.toml"
 
 def load_config(filename: str = CONFIG_FILE) -> Dict:
@@ -21,7 +22,19 @@ def load_config(filename: str = CONFIG_FILE) -> Dict:
             return toml.load(f)
     except Exception as e:
         logging.error(f"加载配置文件失败: {e}")
+        logging.error("请确保当前目录下有 config.toml 文件")
         exit(1)
+
+def clear_old_files():
+    """程序启动时，清理旧的结果文件，防止混淆"""
+    files = [FILE_BAIDU, FILE_GOOGLE, FILE_ALL]
+    for f in files:
+        if os.path.exists(f):
+            try:
+                os.remove(f)
+                # logging.info(f"清理旧文件: {f}")
+            except Exception:
+                pass
 
 def get_remote_socks(url: str, timeout: int) -> List[str]:
     """获取远程代理"""
@@ -29,6 +42,7 @@ def get_remote_socks(url: str, timeout: int) -> List[str]:
         response = requests.get(url, timeout=timeout)
         if response.status_code == 200:
             lines = response.text.strip().splitlines()
+            # 正则提取 IP:Port
             proxies = [line.strip() for line in lines if re.match(r"^\d{1,3}(\.\d{1,3}){3}:\d+$", line.strip())]
             logging.info(f"源 {url} -> 获取到 {len(proxies)} 个代理")
             return proxies
@@ -41,48 +55,44 @@ def check_single_url(proxy_addr: str, check_url: str, timeout: int, retries: int
     proxies = {"http": f"socks5://{proxy_addr}", "https": f"socks5://{proxy_addr}"}
     for _ in range(retries):
         try:
-            # 发起请求
             resp = requests.get(check_url, proxies=proxies, timeout=timeout)
-            
-            # 简单的状态码检查
             if resp.status_code != 200:
                 continue
 
-            # 内容防劫持检查
+            # 内容验证：防止劫持
             if "baidu" in check_url.lower():
-                resp.encoding = 'utf-8' # 防止中文乱码
+                resp.encoding = 'utf-8'
                 if "百度" not in resp.text and "baidu" not in resp.text:
                     return False
             elif "google" in check_url.lower():
                 if "Google" not in resp.text:
                     return False
             
-            return True # 通过检查
+            return True
         except:
             time.sleep(0.5)
     return False
 
 def classify_proxy(proxy: str, check_urls: List[str], timeout: int, retries: int) -> Tuple[str, bool, bool]:
     """
-    对单个代理进行分类测试
-    返回: (代理IP, 是否通百度, 是否通谷歌)
+    分类测试：
+    返回: (IP, 能否上百度, 能否上谷歌)
     """
     can_baidu = False
     can_google = False
 
-    # 遍历配置文件中的 URL
     for url in check_urls:
-        # 如果是百度链接，且还没测通百度
+        # 测试百度
         if "baidu" in url.lower() and not can_baidu:
             if check_single_url(proxy, url, timeout, retries):
                 can_baidu = True
         
-        # 如果是谷歌链接，且还没测通谷歌
+        # 测试谷歌
         if "google" in url.lower() and not can_google:
             if check_single_url(proxy, url, timeout, retries):
                 can_google = True
         
-        # 如果两个都通了，不需要继续测其他的 URL 了
+        # 如果都通了，提前结束
         if can_baidu and can_google:
             break
 
@@ -97,10 +107,10 @@ def run_checks(proxies: List[str], config: Dict):
 
     baidu_list = []
     google_list = []
-    all_list = [] # 既通百度又通谷歌
+    all_list = []
 
     total = len(proxies)
-    logging.info(f"开始测试 {total} 个代理，双向检测 (Baidu & Google)...")
+    logging.info(f"开始测试 {total} 个代理...")
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_proxy = {
@@ -117,52 +127,53 @@ def run_checks(proxies: List[str], config: Dict):
             try:
                 proxy, ok_baidu, ok_google = future.result()
                 
-                # 逻辑分流
                 if ok_baidu:
                     baidu_list.append(proxy)
-                
                 if ok_google:
                     google_list.append(proxy)
-                
-                # 如果两个都为 True，则加入全能列表
                 if ok_baidu and ok_google:
                     all_list.append(proxy)
 
-            except Exception as e:
+            except Exception:
                 pass
 
     return baidu_list, google_list, all_list
 
 def write_file(filename, data):
+    """写入文件，如果列表为空则提示但不写入（或写入空文件）"""
+    if not data:
+        return
     try:
         with open(filename, "w", encoding="utf-8") as f:
             for item in data:
                 f.write(item + "\n")
-        logging.info(f"已写入 {filename}: {len(data)} 个")
+        logging.info(f"已生成文件: {filename} (包含 {len(data)} 个代理)")
     except Exception as e:
-        logging.error(f"写入文件 {filename} 失败: {e}")
+        logging.error(f"写入 {filename} 失败: {e}")
 
 def main():
+    # 0. 清理旧文件
+    clear_old_files()
+
     config = load_config()
     
     # 1. 获取代理
     all_proxies = []
-    remote_urls = config.get("remote_urls", {}).get("urls", [])
-    if not remote_urls:
-        logging.error("未在 config.toml 找到 remote_urls")
-        return
-
-    # 设置一个获取时的超时，防止卡住
+    urls = config.get("remote_urls", {}).get("urls", [])
     fetch_timeout = config.get("check_socks", {}).get("timeout", 10)
 
-    for url in remote_urls:
+    if not urls:
+        logging.error("配置文件中没有 remote_urls")
+        return
+
+    for url in urls:
         all_proxies.extend(get_remote_socks(url, fetch_timeout))
     
     unique_proxies = list(set(all_proxies))
     logging.info(f"去重后共 {len(unique_proxies)} 个代理待检测")
 
     if not unique_proxies:
-        logging.error("没有获取到任何代理 IP，请检查网络或源地址。")
+        logging.error("未获取到代理，程序结束。")
         return
 
     # 2. 分类检测
@@ -170,14 +181,22 @@ def main():
 
     # 3. 保存结果
     logging.info("="*40)
+    
     if baidu_proxies:
         write_file(FILE_BAIDU, baidu_proxies)
+    else:
+        logging.info(f"未发现百度代理，跳过生成 {FILE_BAIDU}")
+
     if google_proxies:
         write_file(FILE_GOOGLE, google_proxies)
+    else:
+        logging.info(f"未发现谷歌代理，跳过生成 {FILE_GOOGLE}")
+
     if all_proxies_list:
         write_file(FILE_ALL, all_proxies_list)
     else:
-        logging.info(f"本次未扫描到全能代理，{FILE_ALL} 不会写入。")
+        logging.info(f"未发现全能代理，跳过生成 {FILE_ALL}")
+
     logging.info("="*40)
 
 if __name__ == "__main__":
