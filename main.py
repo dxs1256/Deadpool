@@ -3,7 +3,7 @@ import toml
 import time
 import logging
 import re
-import os  # 新增：用于文件清理
+import os
 from typing import List, Dict, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -26,13 +26,12 @@ def load_config(filename: str = CONFIG_FILE) -> Dict:
         exit(1)
 
 def clear_old_files():
-    """程序启动时，清理旧的结果文件，防止混淆"""
+    """程序启动时，清理旧的结果文件"""
     files = [FILE_BAIDU, FILE_GOOGLE, FILE_ALL]
     for f in files:
         if os.path.exists(f):
             try:
                 os.remove(f)
-                # logging.info(f"清理旧文件: {f}")
             except Exception:
                 pass
 
@@ -140,7 +139,7 @@ def run_checks(proxies: List[str], config: Dict):
     return baidu_list, google_list, all_list
 
 def write_file(filename, data):
-    """写入文件，如果列表为空则提示但不写入（或写入空文件）"""
+    """写入文件"""
     if not data:
         return
     try:
@@ -185,17 +184,17 @@ def main():
     if baidu_proxies:
         write_file(FILE_BAIDU, baidu_proxies)
     else:
-        logging.info(f"未发现百度代理，跳过生成 {FILE_BAIDU}")
+        logging.info(f"未发现百度代理")
 
     if google_proxies:
         write_file(FILE_GOOGLE, google_proxies)
     else:
-        logging.info(f"未发现谷歌代理，跳过生成 {FILE_GOOGLE}")
+        logging.info(f"未发现谷歌代理")
 
     if all_proxies_list:
         write_file(FILE_ALL, all_proxies_list)
     else:
-        logging.info(f"未发现全能代理，跳过生成 {FILE_ALL}")
+        logging.info(f"未发现全能代理")
 
     logging.info("="*40)
 
