@@ -1,20 +1,16 @@
-# config.toml
-
 [check_socks]
-# 必须包含带有 "baidu" 和 "google" 字样的链接，代码会通过关键字识别
 check_urls = [
     "http://www.baidu.com",
     "http://www.google.com"
 ]
-
 max_concurrent_req = 200
 timeout = 5
-retries = 2 # 既然要测两个网站，重试次数可以稍微减少一点以节省时间
+retries = 2
 
 [remote_urls]
 urls = [
     "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt",
-    "https://raw.githubusercontent.com/sunny9577/proxy-scraper/master/generated/socks5_proxies.txt",
     "https://raw.githubusercontent.com/hookzof/socks5_list/master/proxy.txt",
-    "https://raw.githubusercontent.com/r00tee/Proxy-List/main/Socks5.txt"
+    "https://raw.githubusercontent.com/r00tee/Proxy-List/main/Socks5.txt",
+    "https://raw.githubusercontent.com/sunny9577/proxy-scraper/master/generated/socks5_proxies.txt"
 ]
