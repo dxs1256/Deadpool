@@ -1,16 +1,25 @@
 [check_socks]
+# 检测链接：必须包含 baidu 和 google，用于脚本识别分类
 check_urls = [
     "http://www.baidu.com",
     "http://www.google.com"
 ]
+
+# 并发数：200 速度较快
 max_concurrent_req = 200
+
+# 超时时间：5秒，超过这个时间连不上的都丢弃
 timeout = 5
+
+# 重试次数：每个网址尝试连接的次数
 retries = 2
 
 [remote_urls]
+# 代理源列表
 urls = [
     "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt",
+    "https://raw.githubusercontent.com/sunny9577/proxy-scraper/master/generated/socks5_proxies.txt",
     "https://raw.githubusercontent.com/hookzof/socks5_list/master/proxy.txt",
     "https://raw.githubusercontent.com/r00tee/Proxy-List/main/Socks5.txt",
-    "https://raw.githubusercontent.com/sunny9577/proxy-scraper/master/generated/socks5_proxies.txt"
+    "https://raw.githubusercontent.com/roosterkid/openproxylist/main/SOCKS5_RAW.txt"
 ]
