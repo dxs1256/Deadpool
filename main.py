@@ -14,6 +14,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 FILE_BAIDU = "Baidu.txt"
 FILE_GOOGLE = "Google.txt"
 FILE_ALL = "All.txt"
+FILE_YAML = "proxyConfig.yaml"  # 新增 YAML 配置文件名
 CONFIG_FILE = "config.toml"
 
 def load_config(filename: str = CONFIG_FILE) -> Dict:
@@ -27,7 +28,7 @@ def load_config(filename: str = CONFIG_FILE) -> Dict:
 
 def clear_old_files():
     """程序启动时，清理旧的结果文件"""
-    files = [FILE_BAIDU, FILE_GOOGLE, FILE_ALL]
+    files = [FILE_BAIDU, FILE_GOOGLE, FILE_ALL, FILE_YAML]
     for f in files:
         if os.path.exists(f):
             try:
@@ -139,7 +140,7 @@ def run_checks(proxies: List[str], config: Dict):
     return baidu_list, google_list, all_list
 
 def write_file(filename, data):
-    """写入文件"""
+    """写入普通文本文件 (IP:Port)"""
     if not data:
         return
     try:
@@ -147,6 +148,32 @@ def write_file(filename, data):
             for item in data:
                 f.write(item + "\n")
         logging.info(f"已生成文件: {filename} (包含 {len(data)} 个代理)")
+    except Exception as e:
+        logging.error(f"写入 {filename} 失败: {e}")
+
+def write_yaml_config(filename, data):
+    """
+    将全能代理写入 YAML 配置文件
+    格式要求:
+    ProxyUrls :
+      - ""
+      - "socks5://x.x.x.x:port"
+    """
+    if not data:
+        # 即使没有数据，可能也需要生成一个只有空字符串的配置，视需求而定
+        # 这里设定为如果没有数据就不生成，或者生成仅含 "" 的列表
+        pass
+
+    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write("ProxyUrls :\n")
+            # 写入第一个空项
+            f.write('  - ""\n')
+            # 写入代理列表
+            for item in data:
+                # 假设 item 是 "IP:Port" 格式，需要拼上前缀
+                f.write(f'  - "socks5://{item}"\n')
+        logging.info(f"已生成 YAML 配置文件: {filename}")
     except Exception as e:
         logging.error(f"写入 {filename} 失败: {e}")
 
@@ -193,6 +220,8 @@ def main():
 
     if all_proxies_list:
         write_file(FILE_ALL, all_proxies_list)
+        # 额外生成 proxyConfig.yaml
+        write_yaml_config(FILE_YAML, all_proxies_list)
     else:
         logging.info(f"未发现全能代理")
 
